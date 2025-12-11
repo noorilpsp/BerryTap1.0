@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { z } from 'zod'
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
@@ -59,6 +60,7 @@ const formSchema = z.object({
 type MerchantFormValues = z.infer<typeof formSchema>
 
 export default function NewMerchantPage() {
+  const router = useRouter()
   const [values, setValues] = useState<MerchantFormValues>({
     name: '',
     legalName: '',
@@ -83,6 +85,8 @@ export default function NewMerchantPage() {
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [bannerPreview, setBannerPreview] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const setField = <K extends keyof MerchantFormValues>(key: K, value: MerchantFormValues[K]) => {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -126,42 +130,101 @@ export default function NewMerchantPage() {
     setFileErrors((prev) => ({ ...prev, [kind]: undefined }))
   }
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const parsed = formSchema.safeParse(values)
-    if (!parsed.success) {
-      const fieldErrors: Partial<Record<keyof MerchantFormValues, string>> = {}
-      for (const [field, messages] of Object.entries(parsed.error.flatten().fieldErrors)) {
-        if (messages?.[0]) {
-          fieldErrors[field as keyof MerchantFormValues] = messages[0]
-        }
-      }
-      setErrors(fieldErrors)
-      return
-    }
+  const uploadFile = async (file: File): Promise<string> => {
+    // Upload file to Vercel Blob via API
+    const formData = new FormData()
+    formData.append('file', file)
 
-    // Files are optional but if provided they must be valid.
-    const newFileErrors: { logo?: string; banner?: string } = {}
-    if (logoFile) {
-      const message = validateFile(logoFile)
-      if (message) newFileErrors.logo = message
-    }
-    if (bannerFile) {
-      const message = validateFile(bannerFile)
-      if (message) newFileErrors.banner = message
-    }
-    setFileErrors(newFileErrors)
-    if (newFileErrors.logo || newFileErrors.banner) {
-      return
-    }
-
-    setErrors({})
-    // Placeholder: upload to Vercel Blob would be wired here using the selected files.
-    console.info('Valid form ready to submit', {
-      ...parsed.data,
-      logoFileName: logoFile?.name,
-      bannerFileName: bannerFile?.name,
+    const response = await fetch('/api/admin/merchants/upload', {
+      method: 'POST',
+      body: formData,
     })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to upload file' }))
+      throw new Error(error.error || 'Failed to upload file')
+    }
+
+    const { url } = await response.json()
+    return url
+  }
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setIsSubmitting(true)
+    setSubmitError(null)
+
+    try {
+      const parsed = formSchema.safeParse(values)
+      if (!parsed.success) {
+        const fieldErrors: Partial<Record<keyof MerchantFormValues, string>> = {}
+        for (const [field, messages] of Object.entries(parsed.error.flatten().fieldErrors)) {
+          if (messages?.[0]) {
+            fieldErrors[field as keyof MerchantFormValues] = messages[0]
+          }
+        }
+        setErrors(fieldErrors)
+        setIsSubmitting(false)
+        return
+      }
+
+      // Files are optional but if provided they must be valid.
+      const newFileErrors: { logo?: string; banner?: string } = {}
+      if (logoFile) {
+        const message = validateFile(logoFile)
+        if (message) newFileErrors.logo = message
+      }
+      if (bannerFile) {
+        const message = validateFile(bannerFile)
+        if (message) newFileErrors.banner = message
+      }
+      setFileErrors(newFileErrors)
+      if (newFileErrors.logo || newFileErrors.banner) {
+        setIsSubmitting(false)
+        return
+      }
+
+      setErrors({})
+
+      // Upload files to Vercel Blob
+      let logoUrl: string | undefined
+      let bannerUrl: string | undefined
+
+      if (logoFile) {
+        logoUrl = await uploadFile(logoFile)
+      }
+
+      if (bannerFile) {
+        bannerUrl = await uploadFile(bannerFile)
+      }
+
+      // Submit to API to create the merchant
+      const response = await fetch('/api/admin/merchants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...parsed.data,
+          logoUrl,
+          bannerUrl,
+          country: values.country,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Failed to create merchant' }))
+        throw new Error(error.error || 'Failed to create merchant')
+      }
+
+      const result = await response.json()
+
+      // Redirect to merchants list on success
+      router.push('/admin/merchants')
+    } catch (error) {
+      console.error('Error submitting form:', error)
+      setSubmitError(error instanceof Error ? error.message : 'Failed to create merchant')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -177,14 +240,13 @@ export default function NewMerchantPage() {
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary">
-            Cancel
-          </Button>
-          <Button type="submit">Save draft</Button>
-        </div>
+        {submitError && (
+          <div className="bg-destructive/10 text-destructive rounded-lg border border-destructive/20 p-3 text-sm">
+            {submitError}
+          </div>
+        )}
 
-        <Accordion type="single" collapsible defaultValue="business">
+        <Accordion type="multiple" defaultValue={['business', 'location', 'owner']}>
           <AccordionItem value="business">
             <AccordionTrigger className="text-left text-lg font-semibold">
               Business Information
@@ -453,10 +515,12 @@ export default function NewMerchantPage() {
         </Accordion>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary">
+          <Button type="button" variant="secondary" disabled={isSubmitting} onClick={() => router.back()}>
             Cancel
           </Button>
-          <Button type="submit">Save draft</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating merchant...' : 'Create'}
+          </Button>
         </div>
       </form>
     </div>

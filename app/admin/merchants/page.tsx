@@ -4,7 +4,6 @@ import { and, desc, ilike } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import { merchants } from '@/db/schema/merchants'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { MerchantTableRow } from './components/MerchantTableRow'
 
 type PageProps = {
   searchParams?: { q?: string }
@@ -43,6 +43,12 @@ export default async function AdminMerchantsPage({ searchParams }: PageProps) {
     .from(merchants)
     .where(and(query ? ilike(merchants.name, `%${query}%`) : undefined))
     .orderBy(desc(merchants.createdAt))
+
+  // Format dates in Server Component
+  const formattedRows = rows.map((row) => ({
+    ...row,
+    createdAtFormatted: formatDate(row.createdAt),
+  }))
 
   return (
     <div className="space-y-6">
@@ -95,32 +101,8 @@ export default async function AdminMerchantsPage({ searchParams }: PageProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((merchant) => (
-                <TableRow
-                  key={merchant.id}
-                  className="cursor-pointer"
-                  onClick={() => {
-                    // Allow full-row click navigation without nesting links.
-                    window.location.href = `/admin/merchants/${merchant.id}`
-                  }}
-                >
-                  <TableCell>
-                    <Link
-                      href={`/admin/merchants/${merchant.id}`}
-                      className="font-medium hover:underline"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {merchant.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {merchant.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="capitalize">{merchant.businessType}</TableCell>
-                  <TableCell>{formatDate(merchant.createdAt)}</TableCell>
-                </TableRow>
+              formattedRows.map((merchant) => (
+                <MerchantTableRow key={merchant.id} merchant={merchant} />
               ))
             )}
           </TableBody>
