@@ -5,19 +5,18 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { ArrowRight } from 'lucide-react'
 
-export default function LoginForm() {
+export default function SignupForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [keepSignedIn, setKeepSignedIn] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [emailFocused, setEmailFocused] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
+  const [needsConfirmation, setNeedsConfirmation] = useState(false)
   const router = useRouter()
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,31 +62,17 @@ export default function LoginForm() {
     setError(null)
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, remember: keepSignedIn }),
+        body: JSON.stringify({ email, password }),
         credentials: 'include',
       })
 
-      const data = await res.json().catch(() => ({}) as any)
+      const data = await res.json().catch(() => ({} as any))
 
       if (!res.ok) {
         // Handle specific error cases with better messages
-        if (res.status === 401) {
-          throw new Error(
-            'Email or password is incorrect. Please check your credentials and try again.',
-          )
-        }
-
-        if (res.status === 403) {
-          // Check if backend told us email needs confirmation
-          if (data.message?.toLowerCase().includes('confirm')) {
-            throw new Error('Please confirm your email from the link we sent before signing in.')
-          }
-          throw new Error('Your account is inactive. Please contact your manager for assistance.')
-        }
-
         if (res.status === 400) {
           if (data.message?.includes('required')) {
             throw new Error('Please fill in all required fields.')
@@ -95,14 +80,25 @@ export default function LoginForm() {
           throw new Error(data.message || 'Invalid request. Please check your input.')
         }
 
+        if (res.status === 409) {
+          throw new Error('An account with this email already exists. Please sign in instead.')
+        }
+
         if (res.status === 500) {
           throw new Error('Server error. Please try again in a few moments.')
         }
 
-        throw new Error(data.message || 'Login failed. Please try again.')
+        throw new Error(data.message || 'Signup failed. Please try again.')
       }
 
-      // Force full page reload to ensure cookies are available
+      // Check if email confirmation is required
+      if (!data.session) {
+        // Email confirmation required
+        setNeedsConfirmation(true)
+        return
+      }
+
+      // Session exists, redirect to dashboard
       window.location.href = '/dashboard'
     } catch (err) {
       if (err instanceof Error) {
@@ -115,6 +111,46 @@ export default function LoginForm() {
     }
   }
 
+  if (needsConfirmation) {
+    return (
+      <div className="w-full max-w-2xl">
+        <div className="p-6 sm:p-12 sm:shadow-xl sm:border sm:border-border/40 sm:bg-card sm:rounded-3xl">
+          <div className="space-y-8">
+            {/* Logo */}
+            <div className="flex justify-center">
+              <div className="w-28 h-28">
+                <img src="/BSVG.svg" alt="BerryTap Logo" className="w-full h-full object-contain" />
+              </div>
+            </div>
+
+            <div className="text-center space-y-4">
+              <h1 className="text-3xl font-semibold tracking-tight text-balance text-foreground">
+                Check your email
+              </h1>
+              <p className="text-muted-foreground">
+                We've sent a confirmation email to <strong>{email}</strong>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Click the link in the email to confirm your account and complete signup. If you don't see it, check your spam folder.
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center gap-2 pt-6 text-sm">
+              <p className="text-muted-foreground">
+                Already confirmed?{' '}
+                <Link
+                  href="/login"
+                  className="text-blue-500 hover:text-blue-600 hover:underline transition-colors font-normal"
+                >
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-2xl">
@@ -129,9 +165,9 @@ export default function LoginForm() {
 
           <div className="text-center">
             <h1 className="text-3xl font-semibold tracking-tight text-balance text-foreground">
-              Sign in to BerryTap
+              Create your BerryTap account
             </h1>
-            <p className="mt-2 text-sm text-muted-foreground">Enter your credentials to continue</p>
+            <p className="mt-2 text-sm text-muted-foreground">Enter your details to get started</p>
           </div>
 
           {error && (
@@ -172,7 +208,7 @@ export default function LoginForm() {
                       : 'top-1/2 -translate-y-1/2 text-base text-muted-foreground/60'
                   }`}
                 >
-                  Email or Phone Number
+                  Email
                 </label>
                 {!showPassword && (
                   <Button
@@ -185,8 +221,6 @@ export default function LoginForm() {
                         ? 'opacity-40 cursor-not-allowed'
                         : 'cursor-pointer'
                     }`}
-                    // Fallback if no shadcn Button:
-                    // className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-border/30 hover:bg-border/50 text-foreground shadow-sm transition-all flex-shrink-0 disabled:opacity-40"
                   >
                     <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
                     <span className="sr-only">Continue</span>
@@ -234,54 +268,21 @@ export default function LoginForm() {
                 </div>
               )}
             </div>
-
-            <div className="flex items-center justify-center space-x-2 pt-8">
-              <Checkbox
-                id="keep-signed-in"
-                checked={keepSignedIn}
-                onCheckedChange={(checked) => setKeepSignedIn(!!checked)}
-                className="border-border/60"
-              />
-              <label
-                htmlFor="keep-signed-in"
-                className="text-base font-light text-foreground cursor-pointer select-none"
-              >
-                Keep me signed in
-              </label>
-            </div>
           </form>
 
           <div className="flex flex-col items-center gap-2 pt-6 text-sm">
-            <Link
-              href="/forgot-password"
-              className="text-blue-500 hover:text-blue-600 hover:underline transition-colors font-normal flex items-center gap-0.5 cursor-pointer"
-            >
-              Forgot password?
-              <svg
-                viewBox="0 0 180 130"
-                version="1.1"
-                className="w-5 h-5 flex-shrink-0 text-blue-500 -ml-2"
-              >
-                <g transform="matrix(1 0 0 1 85.49510009765618 114.2884521484375)">
-                  <path
-                    fill="currentColor"
-                    d="M84.5703-17.334L84.5215-66.4551C84.5215-69.2383 82.7148-71.1914 79.7852-71.1914L30.6641-71.1914C27.9297-71.1914 26.0742-69.0918 26.0742-66.748C26.0742-64.4043 28.1738-62.4023 30.4688-62.4023L47.4609-62.4023L71.2891-63.1836L62.207-55.2246L13.8184-6.73828C12.9395-5.85938 12.4512-4.73633 12.4512-3.66211C12.4512-1.31836 14.5508 0.878906 16.9922 0.878906C18.1152 0.878906 19.1895 0.488281 20.0684-0.439453L68.5547-48.877L76.6113-58.0078L75.7324-35.2051L75.7324-17.1387C75.7324-14.8438 77.7344-12.6953 80.127-12.6953C82.4707-12.6953 84.5703-14.6973 84.5703-17.334Z"
-                  ></path>
-                </g>
-              </svg>
-            </Link>
             <p className="text-muted-foreground">
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <Link
-                href="/signup"
+                href="/login"
                 className="text-blue-500 hover:text-blue-600 hover:underline transition-colors font-normal"
               >
-                Create account
+                Sign in
               </Link>
             </p>
           </div>
 
-          {loading && <p className="text-center text-sm text-muted-foreground pt-2">Signing in…</p>}
+          {loading && <p className="text-center text-sm text-muted-foreground pt-2">Creating account…</p>}
         </div>
       </div>
     </div>

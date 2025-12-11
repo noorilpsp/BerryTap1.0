@@ -2,17 +2,17 @@ import { redirect } from 'next/navigation'
 import Image from 'next/image'
 
 import { supabaseServer } from '@/lib/supabaseServer'
-import LoginForm from './components/LoginForm'
-import TopMenu from './components/TopMenu' // new client component below
+import ResetPasswordForm from './components/ResetPasswordForm'
+import TopMenu from '../login/components/TopMenu'
 
-export default async function LoginPage() {
+export default async function ResetPasswordPage() {
   // Check if user is already logged in
   const supabase = await supabaseServer()
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // Redirect everyone to dashboard (admins can access Payload admin via link)
+  // Redirect logged in users to dashboard
   if (session) redirect('/dashboard')
 
   return (
@@ -33,8 +33,9 @@ export default async function LoginPage() {
 
       {/* Main content */}
       <main className="flex items-center justify-center p-4 min-h-[calc(100vh-80px)]">
-        <LoginForm />
+        <ResetPasswordForm />
       </main>
     </div>
   )
 }
+
