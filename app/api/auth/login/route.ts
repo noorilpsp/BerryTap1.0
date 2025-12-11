@@ -36,13 +36,24 @@ export async function POST(request: Request) {
   // Upsert user profile in Neon via Drizzle
   const userId = data.user.id
   const userEmail = data.user.email ?? ''
+  const fullName = (data.user.user_metadata as { full_name?: string } | null)?.full_name ?? userEmail
+  const lastLoginAt = new Date()
 
   await db
     .insert(users)
-    .values({ id: userId, email: userEmail })
+    .values({
+      id: userId,
+      email: userEmail,
+      fullName,
+      lastLoginAt,
+    })
     .onConflictDoUpdate({
       target: users.id,
-      set: { email: userEmail },
+      set: {
+        email: userEmail,
+        fullName,
+        lastLoginAt,
+      },
     })
 
   // Supabase client sets auth cookies automatically via the server client
