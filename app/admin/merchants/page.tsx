@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Plus, Search } from 'lucide-react'
-import { desc, ilike } from 'drizzle-orm'
+import { and, desc, ilike } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import { merchants } from '@/db/schema/merchants'
@@ -32,7 +32,7 @@ function formatDate(value: Date | null) {
 export default async function AdminMerchantsPage({ searchParams }: PageProps) {
   const query = typeof searchParams?.q === 'string' ? searchParams.q.trim() : ''
 
-  let merchantsQuery = db
+  const rows = await db
     .select({
       id: merchants.id,
       name: merchants.name,
@@ -41,12 +41,8 @@ export default async function AdminMerchantsPage({ searchParams }: PageProps) {
       createdAt: merchants.createdAt,
     })
     .from(merchants)
-
-  if (query) {
-    merchantsQuery = merchantsQuery.where(ilike(merchants.name, `%${query}%`))
-  }
-
-  const rows = await merchantsQuery.orderBy(desc(merchants.createdAt))
+    .where(and(query ? ilike(merchants.name, `%${query}%`) : undefined))
+    .orderBy(desc(merchants.createdAt))
 
   return (
     <div className="space-y-6">
