@@ -21,3 +21,4 @@ export const platformPersonnel = pgTable('platform_personnel', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+

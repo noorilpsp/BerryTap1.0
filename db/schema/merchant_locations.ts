@@ -47,3 +47,4 @@ export const merchantLocations = pgTable(
 // After running migrations, you may need to manually add:
 // CREATE INDEX IF NOT EXISTS merchant_locations_settings_gin_idx ON merchant_locations USING gin (settings);
 
+

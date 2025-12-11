@@ -41,3 +41,4 @@ export const merchants = pgTable('merchants', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+

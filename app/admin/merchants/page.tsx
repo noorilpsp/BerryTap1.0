@@ -1,24 +1,11 @@
 import Link from 'next/link'
-import { Plus, Search } from 'lucide-react'
-import { and, desc, ilike } from 'drizzle-orm'
+import { Plus } from 'lucide-react'
+import { desc } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import { merchants } from '@/db/schema/merchants'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { MerchantTableRow } from './components/MerchantTableRow'
-
-type PageProps = {
-  searchParams?: { q?: string }
-}
+import { MerchantsList } from './components/MerchantsList'
 
 function formatDate(value: Date | null) {
   if (!value) return '—'
@@ -29,9 +16,8 @@ function formatDate(value: Date | null) {
   }).format(value)
 }
 
-export default async function AdminMerchantsPage({ searchParams }: PageProps) {
-  const query = typeof searchParams?.q === 'string' ? searchParams.q.trim() : ''
-
+export default async function AdminMerchantsPage() {
+  // Load all merchants for client-side filtering
   const rows = await db
     .select({
       id: merchants.id,
@@ -41,73 +27,26 @@ export default async function AdminMerchantsPage({ searchParams }: PageProps) {
       createdAt: merchants.createdAt,
     })
     .from(merchants)
-    .where(and(query ? ilike(merchants.name, `%${query}%`) : undefined))
     .orderBy(desc(merchants.createdAt))
+    .limit(500) // Load up to 500 merchants for client-side filtering
 
   // Format dates in Server Component
-  const formattedRows = rows.map((row) => ({
+  const formattedMerchants = rows.map((row) => ({
     ...row,
     createdAtFormatted: formatDate(row.createdAt),
   }))
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Merchants</h1>
-          <p className="text-muted-foreground">
-            View and search merchants. Click a row to open details.
-          </p>
-        </div>
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-          <form className="flex w-full gap-2 sm:w-80" action="/admin/merchants">
-            <div className="relative flex-1">
-              <Search className="text-muted-foreground absolute left-2.5 top-2.5 size-4" />
-              <Input
-                name="q"
-                defaultValue={query}
-                placeholder="Search by name"
-                className="pl-9"
-              />
-            </div>
-            <Button type="submit" variant="secondary">
-              Search
-            </Button>
-          </form>
-          <Button asChild>
-            <Link href="/admin/merchants/new" className="gap-2">
-              <Plus className="size-4" />
-              New merchant
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-xl border bg-card shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Business Type</TableHead>
-              <TableHead>Created</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-muted-foreground py-8 text-center">
-                  No merchants found{query ? ` for “${query}”` : ''}.
-                </TableCell>
-              </TableRow>
-            ) : (
-              formattedRows.map((merchant) => (
-                <MerchantTableRow key={merchant.id} merchant={merchant} />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <MerchantsList
+      merchants={formattedMerchants}
+      newMerchantButton={
+        <Button asChild>
+          <Link href="/admin/merchants/new" className="gap-2">
+            <Plus className="size-4" />
+            New merchant
+          </Link>
+        </Button>
+      }
+    />
   )
 }
