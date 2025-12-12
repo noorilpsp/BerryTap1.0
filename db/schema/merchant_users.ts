@@ -45,3 +45,4 @@ export const merchantUsers = pgTable(
 // CREATE INDEX IF NOT EXISTS merchant_users_location_access_gin_idx ON merchant_users USING gin (location_access);
 
 
+

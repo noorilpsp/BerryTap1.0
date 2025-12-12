@@ -6,6 +6,7 @@ import { merchants } from '@/db/schema/merchants'
 import { merchantLocations } from '@/db/schema/merchant_locations'
 import { Badge } from '@/components/ui/badge'
 import { EditMerchantForm } from './components/EditMerchantForm'
+import { unstable_cache } from '@/lib/unstable-cache'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -14,25 +15,36 @@ type PageProps = {
 export default async function EditMerchantPage({ params }: PageProps) {
   const { id } = await params
 
-  // Fetch merchant
-  const merchant = await db
-    .select()
-    .from(merchants)
-    .where(eq(merchants.id, id))
-    .limit(1)
-    .then((rows) => rows[0])
+  const getMerchant = unstable_cache(
+    async () =>
+      db
+        .select()
+        .from(merchants)
+        .where(eq(merchants.id, id))
+        .limit(1)
+        .then((rows) => rows[0]),
+    ['merchant-edit', id],
+    { revalidate: 7200 },
+  )
+
+  const getFirstLocation = unstable_cache(
+    async () =>
+      db
+        .select()
+        .from(merchantLocations)
+        .where(eq(merchantLocations.merchantId, id))
+        .limit(1)
+        .then((rows) => rows[0]),
+    ['merchant-edit-first-location', id],
+    { revalidate: 7200 },
+  )
+
+  // Fetch merchant and first location in parallel
+  const [merchant, firstLocation] = await Promise.all([getMerchant(), getFirstLocation()])
 
   if (!merchant) {
     notFound()
   }
-
-  // Fetch first location (for editing)
-  const firstLocation = await db
-    .select()
-    .from(merchantLocations)
-    .where(eq(merchantLocations.merchantId, id))
-    .limit(1)
-    .then((rows) => rows[0])
 
   return (
     <div className="space-y-6">

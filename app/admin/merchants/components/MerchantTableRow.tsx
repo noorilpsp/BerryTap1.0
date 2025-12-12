@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { TableCell, TableRow } from '@/components/ui/table'
+import { usePermissionsContext } from '@/lib/contexts/PermissionsContext'
+import { ConditionalRender } from '@/components/ConditionalRender'
 
 type Merchant = {
   id: string
@@ -17,6 +19,9 @@ type MerchantTableRowProps = {
 }
 
 export function MerchantTableRow({ merchant }: MerchantTableRowProps) {
+  const { getUserRole, isPlatformAdmin } = usePermissionsContext()
+  const userRole = getUserRole(merchant.id)
+
   return (
     <TableRow
       className="cursor-pointer"
@@ -25,13 +30,38 @@ export function MerchantTableRow({ merchant }: MerchantTableRowProps) {
       }}
     >
       <TableCell>
-        <Link
-          href={`/admin/merchants/${merchant.id}`}
-          className="font-medium hover:underline"
-          onClick={(event) => event.stopPropagation()}
-        >
-          {merchant.name}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/admin/merchants/${merchant.id}`}
+            className="font-medium hover:underline"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {merchant.name}
+          </Link>
+          <ConditionalRender
+            requireMerchantAccess={merchant.id}
+            fallback={
+              isPlatformAdmin ? (
+                <Badge variant="secondary" className="text-xs">
+                  Admin
+                </Badge>
+              ) : null
+            }
+          >
+            <Badge
+              variant={
+                userRole === 'owner'
+                  ? 'default'
+                  : userRole === 'admin'
+                    ? 'secondary'
+                    : 'outline'
+              }
+              className="text-xs capitalize"
+            >
+              {userRole}
+            </Badge>
+          </ConditionalRender>
+        </div>
       </TableCell>
       <TableCell>
         <Badge variant="outline" className="capitalize">

@@ -4,10 +4,11 @@ import { desc, ilike } from 'drizzle-orm'
 import { supabaseServer } from '@/lib/supabaseServer'
 import { db } from '@/lib/db'
 import { merchants } from '@/db/schema/merchants'
-import { platformPersonnel } from '@/db/schema/platform_personnel'
-import { eq } from 'drizzle-orm'
+import { isPlatformAdmin } from '@/lib/permissions'
 
-async function verifyPlatformPersonnel() {
+export async function GET(request: Request) {
+  try {
+    // Verify user is platform admin
   const supabase = await supabaseServer()
   const {
     data: { user },
@@ -15,32 +16,15 @@ async function verifyPlatformPersonnel() {
   } = await supabase.auth.getUser()
 
   if (userError || !user) {
-    return { authorized: false, error: 'Unauthorized' }
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const personnel = await db
-    .select({
-      role: platformPersonnel.role,
-      isActive: platformPersonnel.isActive,
-    })
-    .from(platformPersonnel)
-    .where(eq(platformPersonnel.userId, user.id))
-    .limit(1)
-    .then((rows) => rows[0])
-
-  if (!personnel || personnel.role !== 'super_admin' || personnel.isActive === false) {
-    return { authorized: false, error: 'Forbidden: Super admin access required' }
-  }
-
-  return { authorized: true, userId: user.id }
-}
-
-export async function GET(request: Request) {
-  try {
-    // Verify user is platform_personnel with super_admin role
-    const authCheck = await verifyPlatformPersonnel()
-    if (!authCheck.authorized) {
-      return NextResponse.json({ error: authCheck.error }, { status: 403 })
+    const isAdmin = await isPlatformAdmin(user.id)
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden: Super admin access required' },
+        { status: 403 },
+      )
     }
 
     const { searchParams } = new URL(request.url)

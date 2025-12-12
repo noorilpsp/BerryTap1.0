@@ -29,6 +29,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Toaster } from '@/components/ui/sonner'
+import { usePermissions } from '@/lib/hooks/usePermissions'
 
 const navItems = [
   { title: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -39,6 +40,7 @@ const navItems = [
 
 export function AdminSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { permissions, loading } = usePermissions()
 
   return (
     <SidebarProvider>
@@ -84,10 +86,21 @@ export function AdminSidebar({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between rounded-lg border px-3 py-2">
             <div className="flex flex-col">
               <span className="text-sm font-medium">Access</span>
-              <span className="text-muted-foreground text-xs">Super admin</span>
+              <span className="text-muted-foreground text-xs">
+                {loading
+                  ? 'Loading...'
+                  : permissions?.platformAdmin
+                    ? 'Super admin'
+                    : permissions?.totalMerchants
+                      ? `${permissions.totalMerchants} merchant${permissions.totalMerchants > 1 ? 's' : ''}`
+                      : 'No access'}
+              </span>
             </div>
-            <Badge variant="outline" className="text-xs">
-              Active
+            <Badge
+              variant={permissions?.platformAdmin ? 'default' : 'outline'}
+              className="text-xs"
+            >
+              {loading ? '...' : permissions?.platformAdmin ? 'Admin' : 'User'}
             </Badge>
           </div>
         </SidebarFooter>

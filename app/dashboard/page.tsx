@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 
 import { getCurrentUser } from '@/lib/currentUser'
+import DashboardContent from './components/DashboardContent'
 
 export default async function DashboardPage() {
   const currentUser = await getCurrentUser()
@@ -11,7 +12,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="min-h-screen p-8 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
           <p className="mt-2 text-muted-foreground">
@@ -27,6 +28,7 @@ export default async function DashboardPage() {
           </button>
         </form>
       </div>
+      <DashboardContent />
     </main>
   )
 }

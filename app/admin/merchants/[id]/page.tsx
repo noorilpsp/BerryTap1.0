@@ -10,42 +10,61 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { MerchantActions } from './components/MerchantActions'
+import { LocationsList } from './components/LocationsList'
+import { unstable_cache } from '@/lib/unstable-cache'
 
 type PageProps = {
   params: Promise<{ id: string }>
 }
 
-function formatDate(value: Date | null) {
+function formatDate(value: Date | string | null) {
   if (!value) return '—'
+  const date = typeof value === 'string' ? new Date(value) : value
+  if (Number.isNaN(date.getTime())) return '—'
   return new Intl.DateTimeFormat('en', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(value)
+  }).format(date)
 }
 
 export default async function MerchantDetailPage({ params }: PageProps) {
   const { id } = await params
 
+  const getMerchant = unstable_cache(
+    async () =>
+      db
+        .select()
+        .from(merchants)
+        .where(eq(merchants.id, id))
+        .limit(1)
+        .then((rows) => rows[0]),
+    ['merchant-detail', id],
+    { revalidate: 7200 },
+  )
+
+  const getMerchantLocations = unstable_cache(
+    async () =>
+      db
+        .select()
+        .from(merchantLocations)
+        .where(eq(merchantLocations.merchantId, id)),
+    ['merchant-locations', id],
+    { revalidate: 7200 },
+  )
+
   // Fetch merchant
-  const merchant = await db
-    .select()
-    .from(merchants)
-    .where(eq(merchants.id, id))
-    .limit(1)
-    .then((rows) => rows[0])
+  const [merchant, locations] = await Promise.all([
+    getMerchant(id),
+    getMerchantLocations(id),
+  ])
 
   if (!merchant) {
     notFound()
   }
-
-  // Fetch locations for this merchant
-  const locations = await db
-    .select()
-    .from(merchantLocations)
-    .where(eq(merchantLocations.merchantId, id))
 
   return (
     <div className="space-y-6">
@@ -68,9 +87,7 @@ export default async function MerchantDetailPage({ params }: PageProps) {
           </div>
           <p className="text-muted-foreground mt-1">{merchant.legalName}</p>
         </div>
-        <Button variant="outline" asChild>
-          <Link href={`/admin/merchants/${id}/edit`}>Edit</Link>
-        </Button>
+        <MerchantActions merchantId={id} />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -179,91 +196,7 @@ export default async function MerchantDetailPage({ params }: PageProps) {
       </div>
 
       {/* Locations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Locations</CardTitle>
-          <CardDescription>
-            {locations.length === 0
-              ? 'No locations found for this merchant'
-              : `${locations.length} location${locations.length === 1 ? '' : 's'}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {locations.length === 0 ? (
-            <div className="text-muted-foreground py-8 text-center text-sm">
-              No locations have been added yet.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {locations.map((location) => (
-                <div key={location.id} className="rounded-lg border p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-3 flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-semibold">{location.name}</h3>
-                        <Badge variant="outline" className="capitalize text-xs">
-                          {location.status}
-                        </Badge>
-                      </div>
-                      <div className="grid gap-2 text-sm md:grid-cols-2">
-                        <div className="flex items-start gap-2">
-                          <MapPin className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-                          <div>
-                            <div>{location.address}</div>
-                            <div className="text-muted-foreground">
-                              {location.postalCode} {location.city}
-                            </div>
-                          </div>
-                        </div>
-                        {location.phone && (
-                          <div className="flex items-center gap-2">
-                            <Phone className="text-muted-foreground size-4 shrink-0" />
-                            <a href={`tel:${location.phone}`} className="hover:underline">
-                              {location.phone}
-                            </a>
-                          </div>
-                        )}
-                        {location.email && (
-                          <div className="flex items-center gap-2">
-                            <Mail className="text-muted-foreground size-4 shrink-0" />
-                            <a href={`mailto:${location.email}`} className="hover:underline">
-                              {location.email}
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                      {(location.logoUrl || location.bannerUrl) && (
-                        <div className="flex gap-4 pt-2">
-                          {location.logoUrl && (
-                            <div className="space-y-1">
-                              <div className="text-xs text-muted-foreground">Logo</div>
-                              <img
-                                src={location.logoUrl}
-                                alt={`${location.name} logo`}
-                                className="h-16 w-16 rounded object-cover"
-                              />
-                            </div>
-                          )}
-                          {location.bannerUrl && (
-                            <div className="space-y-1">
-                              <div className="text-xs text-muted-foreground">Banner</div>
-                              <img
-                                src={location.bannerUrl}
-                                alt={`${location.name} banner`}
-                                className="h-16 w-32 rounded object-cover"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <LocationsList locations={locations} merchantId={id} />
     </div>
   )
 }

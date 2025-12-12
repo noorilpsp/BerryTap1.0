@@ -48,3 +48,4 @@ export const merchantLocations = pgTable(
 // CREATE INDEX IF NOT EXISTS merchant_locations_settings_gin_idx ON merchant_locations USING gin (settings);
 
 
+
