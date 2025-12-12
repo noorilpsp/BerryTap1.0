@@ -1,4 +1,5 @@
 import { unstable_noStore } from 'next/cache'
+import dynamic from 'next/dynamic'
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
 
@@ -6,8 +7,18 @@ import { db } from '@/lib/db'
 import { merchants } from '@/db/schema/merchants'
 import { merchantLocations } from '@/db/schema/merchant_locations'
 import { Badge } from '@/components/ui/badge'
-import { EditMerchantForm } from './EditMerchantForm'
+import { Skeleton } from '@/components/ui/skeleton'
 import { unstable_cache } from '@/lib/unstable-cache'
+
+// Lazy load EditMerchantForm - it's a heavy form component with image optimization
+// Only needed on edit page, so code split it
+const EditMerchantForm = dynamic(() => import('./EditMerchantForm').then((mod) => ({ default: mod.EditMerchantForm })), {
+  loading: () => (
+    <div className="space-y-6">
+      <Skeleton className="h-96 w-full" />
+    </div>
+  ),
+})
 
 type EditMerchantDataProps = {
   merchantId: string

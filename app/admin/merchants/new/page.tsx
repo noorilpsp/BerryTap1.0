@@ -1,7 +1,23 @@
+import dynamic from 'next/dynamic'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 
-// Server Component - no 'use client'
-import { NewMerchantForm } from './components/NewMerchantForm'
+// Lazy load NewMerchantForm - it's a heavy form component with image optimization
+// Only needed on this page, so code split it
+const NewMerchantForm = dynamic(() => import('./components/NewMerchantForm').then((mod) => ({ default: mod.NewMerchantForm })), {
+  loading: () => (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-6 w-96" />
+      </div>
+      <div className="space-y-4">
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    </div>
+  ),
+})
 
 export default function NewMerchantPage() {
   return (

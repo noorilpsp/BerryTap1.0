@@ -2,6 +2,7 @@
 const nextConfig = {
   cacheComponents: true,
   experimental: {
+    reactCompiler: true, // React Compiler - automatically memoizes components
     inlineCss: true,
   },
   typescript: {

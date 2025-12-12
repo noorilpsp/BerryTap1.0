@@ -1,4 +1,5 @@
 import { unstable_noStore } from 'next/cache'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ArrowLeft, Building2, Calendar, Mail, MapPin, Phone, Tag } from 'lucide-react'
 import { eq } from 'drizzle-orm'
@@ -11,9 +12,23 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import { MerchantActions } from './MerchantActions'
-import { LocationsList } from './LocationsList'
 import { unstable_cache } from '@/lib/unstable-cache'
+
+// Lazy load LocationsList - it's a client component below the fold
+// Only loads when user scrolls to locations section
+const LocationsList = dynamic(() => import('./LocationsList').then((mod) => ({ default: mod.LocationsList })), {
+  loading: () => (
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold">Locations</h2>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    </div>
+  ),
+})
 
 function formatDate(value: Date | string | null) {
   if (!value) return '—'

@@ -1,8 +1,21 @@
 import { unstable_noStore } from 'next/cache'
 import { redirect } from 'next/navigation'
+import dynamic from 'next/dynamic'
 
 import { getCurrentUser } from '@/lib/currentUser'
-import DashboardContent from './components/DashboardContent'
+
+// Lazy load DashboardContent - it's a client component that fetches permissions
+// Not critical above the fold, so we can code split it
+const DashboardContent = dynamic(() => import('./components/DashboardContent'), {
+  loading: () => (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
+        <p className="text-muted-foreground">Loading dashboard...</p>
+      </div>
+    </div>
+  ),
+})
 
 export default async function DashboardPage() {
   unstable_noStore()
