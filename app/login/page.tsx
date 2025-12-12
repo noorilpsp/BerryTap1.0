@@ -1,3 +1,4 @@
+import { unstable_noStore } from 'next/cache'
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
 
@@ -6,6 +7,7 @@ import LoginForm from './components/LoginForm'
 import TopMenu from './components/TopMenu' // new client component below
 
 export default async function LoginPage() {
+  unstable_noStore()
   // Check if user is already logged in
   const supabase = await supabaseServer()
   const {

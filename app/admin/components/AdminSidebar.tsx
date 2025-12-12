@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -38,9 +39,37 @@ const navItems = [
   { title: 'Reports', href: '/admin/reports', icon: BarChart3 },
 ]
 
+function AdminSidebarFooter() {
+  const { permissions, loading } = usePermissions()
+
+  return (
+    <SidebarFooter className="px-3">
+      <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+        <div className="flex flex-col">
+          <span className="text-sm font-medium">Access</span>
+          <span className="text-muted-foreground text-xs">
+            {loading
+              ? 'Loading...'
+              : permissions?.platformAdmin
+                ? 'Super admin'
+                : permissions?.totalMerchants
+                  ? `${permissions.totalMerchants} merchant${permissions.totalMerchants > 1 ? 's' : ''}`
+                  : 'No access'}
+          </span>
+        </div>
+        <Badge
+          variant={permissions?.platformAdmin ? 'default' : 'outline'}
+          className="text-xs"
+        >
+          {loading ? '...' : permissions?.platformAdmin ? 'Admin' : 'User'}
+        </Badge>
+      </div>
+    </SidebarFooter>
+  )
+}
+
 export function AdminSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { permissions, loading } = usePermissions()
 
   return (
     <SidebarProvider>
@@ -82,28 +111,23 @@ export function AdminSidebar({ children }: { children: React.ReactNode }) {
           </SidebarGroup>
           <SidebarSeparator />
         </SidebarContent>
-        <SidebarFooter className="px-3">
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">Access</span>
-              <span className="text-muted-foreground text-xs">
-                {loading
-                  ? 'Loading...'
-                  : permissions?.platformAdmin
-                    ? 'Super admin'
-                    : permissions?.totalMerchants
-                      ? `${permissions.totalMerchants} merchant${permissions.totalMerchants > 1 ? 's' : ''}`
-                      : 'No access'}
-              </span>
-            </div>
-            <Badge
-              variant={permissions?.platformAdmin ? 'default' : 'outline'}
-              className="text-xs"
-            >
-              {loading ? '...' : permissions?.platformAdmin ? 'Admin' : 'User'}
-            </Badge>
-          </div>
-        </SidebarFooter>
+        <Suspense
+          fallback={
+            <SidebarFooter className="px-3">
+              <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">Access</span>
+                  <span className="text-muted-foreground text-xs">Loading...</span>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  ...
+                </Badge>
+              </div>
+            </SidebarFooter>
+          }
+        >
+          <AdminSidebarFooter />
+        </Suspense>
         <SidebarRail />
       </Sidebar>
       <SidebarInset>

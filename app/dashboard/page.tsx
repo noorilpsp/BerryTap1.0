@@ -1,9 +1,11 @@
+import { unstable_noStore } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { getCurrentUser } from '@/lib/currentUser'
 import DashboardContent from './components/DashboardContent'
 
 export default async function DashboardPage() {
+  unstable_noStore()
   const currentUser = await getCurrentUser()
 
   if (!currentUser) {

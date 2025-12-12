@@ -2,7 +2,24 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export async function supabaseServer() {
-  const cookieStore = await cookies()
+  let cookieStore
+  try {
+    cookieStore = await cookies()
+  } catch (error) {
+    // During prerendering, cookies() may reject. Return a client that won't work
+    // but won't crash. This should only happen during build-time prerendering.
+    return createServerClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get: () => undefined,
+          set: () => {},
+          remove: () => {},
+        },
+      },
+    )
+  }
 
   return createServerClient(
     process.env.SUPABASE_URL!,

@@ -31,7 +31,14 @@ export async function GET(request: Request) {
     const query = searchParams.get('q')?.trim()
 
     if (!query || query.length < 2) {
-      return NextResponse.json({ merchants: [] })
+      return NextResponse.json(
+        { merchants: [] },
+        {
+          headers: {
+            'Cache-Control': 'public, max-age=600, s-maxage=600', // 10 minutes
+          },
+        },
+      )
     }
 
     // Search all merchants in database
@@ -58,7 +65,14 @@ export async function GET(request: Request) {
       }).format(row.createdAt),
     }))
 
-    return NextResponse.json({ merchants: formattedMerchants })
+    return NextResponse.json(
+      { merchants: formattedMerchants },
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=600, s-maxage=600', // 10 minutes
+        },
+      },
+    )
   } catch (error) {
     console.error('[search-merchants] Error:', error)
     return NextResponse.json(

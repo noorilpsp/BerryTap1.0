@@ -36,6 +36,9 @@ export function usePermissions() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Only fetch on client side, after mount
+    if (typeof window === 'undefined') return
+
     async function fetchPermissions() {
       try {
         setLoading(true)

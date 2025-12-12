@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, ReactNode } from 'react'
+import React, { createContext, useContext, ReactNode, useEffect, useState } from 'react'
 import { usePermissions, type UserPermissions } from '@/lib/hooks/usePermissions'
 
 type PermissionsContextType = {
@@ -16,7 +16,8 @@ type PermissionsContextType = {
 
 const PermissionsContext = createContext<PermissionsContextType | undefined>(undefined)
 
-export function PermissionsProvider({ children }: { children: ReactNode }) {
+// Internal component that only renders after mount to avoid blocking prerendering
+function PermissionsProviderInner({ children }: { children: ReactNode }) {
   const { permissions, loading, error, refetch } = usePermissions()
 
   const isPlatformAdmin = permissions?.platformAdmin ?? false
@@ -61,6 +62,33 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       {children}
     </PermissionsContext.Provider>
   )
+}
+
+// Default context value for SSR/prerendering
+const defaultContextValue: PermissionsContextType = {
+  permissions: null,
+  loading: true,
+  error: null,
+  refetch: () => {},
+  isPlatformAdmin: false,
+  hasMerchantAccess: () => false,
+  canAccessLocation: () => false,
+  getUserRole: () => null,
+}
+
+export function PermissionsProvider({ children }: { children: ReactNode }) {
+  // During SSR/prerendering (when window is undefined), use default values
+  // This avoids triggering static analysis warnings with cacheComponents
+  if (typeof window === 'undefined') {
+    return (
+      <PermissionsContext.Provider value={defaultContextValue}>
+        {children}
+      </PermissionsContext.Provider>
+    )
+  }
+
+  // On client side, use the actual permissions hook
+  return <PermissionsProviderInner>{children}</PermissionsProviderInner>
 }
 
 export function usePermissionsContext() {

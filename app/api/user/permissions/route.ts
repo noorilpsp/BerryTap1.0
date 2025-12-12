@@ -1,3 +1,4 @@
+import { unstable_noStore } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { eq, inArray } from 'drizzle-orm'
 
@@ -10,6 +11,7 @@ import { isPlatformAdmin } from '@/lib/permissions'
 import { unstable_cache } from '@/lib/unstable-cache'
 
 export async function GET(request: Request) {
+  unstable_noStore()
   try {
     // Get authenticated user
     const supabase = await supabaseServer()
@@ -146,7 +148,11 @@ export async function GET(request: Request) {
       totalMerchants: validMerchantData.length,
     }
 
-    return NextResponse.json(response)
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'private, max-age=600, s-maxage=600', // 10 minutes (private since user-specific)
+      },
+    })
   } catch (error) {
     console.error('[user-permissions] Error:', error)
     return NextResponse.json(
