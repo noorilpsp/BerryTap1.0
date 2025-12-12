@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { MapPin, Phone, Mail } from 'lucide-react'
@@ -95,11 +96,15 @@ export function LocationsList({ locations, merchantId }: LocationsListProps) {
                         {location.logoUrl && (
                           <div className="space-y-1">
                             <div className="text-xs text-muted-foreground">Logo</div>
-                            <img
-                              src={location.logoUrl}
-                              alt={`${location.name} logo`}
-                              className="h-16 w-16 rounded object-cover"
-                            />
+                            <div className="relative h-16 w-16">
+                              <Image
+                                src={location.logoUrl}
+                                alt={`${location.name} logo`}
+                                fill
+                                className="rounded object-cover"
+                                unoptimized={location.logoUrl.startsWith('data:')}
+                              />
+                            </div>
                           </div>
                         )}
                         {location.bannerUrl && (

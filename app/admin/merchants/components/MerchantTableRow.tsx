@@ -31,13 +31,13 @@ export function MerchantTableRow({ merchant }: MerchantTableRowProps) {
     >
       <TableCell>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/admin/merchants/${merchant.id}`}
-            className="font-medium hover:underline"
-            onClick={(event) => event.stopPropagation()}
-          >
-            {merchant.name}
-          </Link>
+        <Link
+          href={`/admin/merchants/${merchant.id}`}
+          className="font-medium hover:underline"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {merchant.name}
+        </Link>
           <ConditionalRender
             requireMerchantAccess={merchant.id}
             fallback={

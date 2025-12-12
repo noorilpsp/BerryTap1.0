@@ -4,6 +4,7 @@ import type React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
 
@@ -175,8 +176,14 @@ export default function ResetPasswordForm() {
           <div className="space-y-8">
             {/* Logo */}
             <div className="flex justify-center">
-              <div className="w-28 h-28">
-                <img src="/BSVG.svg" alt="BerryTap Logo" className="w-full h-full object-contain" />
+              <div className="w-28 h-28 relative">
+                <Image
+                  src="/BSVG.svg"
+                  alt="BerryTap Logo"
+                  fill
+                  className="object-contain"
+                  priority
+                />
               </div>
             </div>
 
@@ -200,8 +207,14 @@ export default function ResetPasswordForm() {
         <div className="space-y-8">
           {/* Logo */}
           <div className="flex justify-center">
-            <div className="w-28 h-28">
-              <img src="/BSVG.svg" alt="BerryTap Logo" className="w-full h-full object-contain" />
+            <div className="w-28 h-28 relative">
+              <Image
+                src="/BSVG.svg"
+                alt="BerryTap Logo"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
           </div>
 

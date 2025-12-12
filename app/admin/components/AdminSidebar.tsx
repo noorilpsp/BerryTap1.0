@@ -113,17 +113,17 @@ export function AdminSidebar({ children }: { children: React.ReactNode }) {
         </SidebarContent>
         <Suspense
           fallback={
-            <SidebarFooter className="px-3">
-              <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">Access</span>
+        <SidebarFooter className="px-3">
+          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">Access</span>
                   <span className="text-muted-foreground text-xs">Loading...</span>
-                </div>
-                <Badge variant="outline" className="text-xs">
+            </div>
+            <Badge variant="outline" className="text-xs">
                   ...
-                </Badge>
-              </div>
-            </SidebarFooter>
+            </Badge>
+          </div>
+        </SidebarFooter>
           }
         >
           <AdminSidebarFooter />

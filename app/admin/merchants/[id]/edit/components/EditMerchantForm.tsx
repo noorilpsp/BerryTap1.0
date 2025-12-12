@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { z } from 'zod'
 import { toast } from 'sonner'
 
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { optimizeImage } from '@/lib/utils/imageOptimization'
 
 const businessTypes = [
   { value: 'restaurant', label: 'Restaurant' },
@@ -139,7 +141,10 @@ export function EditMerchantForm({ merchant, location }: EditMerchantFormProps) 
     return ''
   }
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, kind: 'logo' | 'banner') => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    kind: 'logo' | 'banner',
+  ) => {
     const file = event.target.files?.[0]
     if (!file) {
       setFileErrors((prev) => ({ ...prev, [kind]: undefined }))
@@ -154,6 +159,7 @@ export function EditMerchantForm({ merchant, location }: EditMerchantFormProps) 
       return
     }
 
+    // Validate original file
     const message = validateFile(file)
     if (message) {
       setFileErrors((prev) => ({ ...prev, [kind]: message }))
@@ -168,15 +174,62 @@ export function EditMerchantForm({ merchant, location }: EditMerchantFormProps) 
       return
     }
 
-    const previewUrl = URL.createObjectURL(file)
-    if (kind === 'logo') {
-      setLogoFile(file)
-      setLogoPreview(previewUrl)
-    } else {
-      setBannerFile(file)
-      setBannerPreview(previewUrl)
+    try {
+      // Optimize the image before storing
+      setSubmitStatus(`Optimizing ${kind}...`)
+      const optimizedFile = await optimizeImage(file, kind)
+
+      // Validate optimized file size (should be smaller, but check anyway)
+      if (optimizedFile.size > MAX_FILE_SIZE) {
+        setFileErrors((prev) => ({
+          ...prev,
+          [kind]: 'File is too large even after optimization',
+        }))
+        if (kind === 'logo') {
+          setLogoFile(null)
+          setLogoPreview(location?.logoUrl || null)
+        }
+        if (kind === 'banner') {
+          setBannerFile(null)
+          setBannerPreview(location?.bannerUrl || null)
+        }
+        setSubmitStatus('')
+        return
+      }
+
+      // Create preview from optimized file
+      const previewUrl = URL.createObjectURL(optimizedFile)
+      if (kind === 'logo') {
+        setLogoFile(optimizedFile)
+        setLogoPreview(previewUrl)
+      } else {
+        setBannerFile(optimizedFile)
+        setBannerPreview(previewUrl)
+      }
+      setFileErrors((prev) => ({ ...prev, [kind]: undefined }))
+      setSubmitStatus('')
+
+      // Show optimization feedback
+      const sizeReduction = ((1 - optimizedFile.size / file.size) * 100).toFixed(0)
+      if (sizeReduction !== '0') {
+        toast.success(`${kind} optimized: ${sizeReduction}% smaller`)
+      }
+    } catch (error) {
+      console.error(`[handleFileChange] Error optimizing ${kind}:`, error)
+      setFileErrors((prev) => ({
+        ...prev,
+        [kind]: 'Failed to process image. Please try again.',
+      }))
+      if (kind === 'logo') {
+        setLogoFile(null)
+        setLogoPreview(location?.logoUrl || null)
+      }
+      if (kind === 'banner') {
+        setBannerFile(null)
+        setBannerPreview(location?.bannerUrl || null)
+      }
+      setSubmitStatus('')
     }
-    setFileErrors((prev) => ({ ...prev, [kind]: undefined }))
   }
 
   const uploadFile = async (file: File): Promise<string> => {
@@ -425,7 +478,15 @@ export function EditMerchantForm({ merchant, location }: EditMerchantFormProps) 
                 />
                 {logoPreview && (
                   <div className="border-muted bg-muted/30 text-sm text-muted-foreground flex items-center gap-3 rounded-md border p-2">
-                    <img src={logoPreview} alt="Logo preview" className="size-12 rounded object-cover" />
+                    <div className="relative size-12">
+                      <Image
+                        src={logoPreview}
+                        alt="Logo preview"
+                        fill
+                        className="rounded object-cover"
+                        unoptimized={logoPreview.startsWith('data:')}
+                      />
+                    </div>
                     <span className="truncate">
                       {logoFile?.name || (location?.logoUrl ? 'Current logo' : 'No logo')}
                     </span>
