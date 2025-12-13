@@ -5,6 +5,7 @@ import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 import * as schema from '@/db/schema'
 
 let _db: NeonHttpDatabase<typeof schema> | null = null
+const _proxyTarget = {} as Record<string | symbol, any>
 
 function getDb(): NeonHttpDatabase<typeof schema> {
   if (_db) {
@@ -43,16 +44,22 @@ function getDb(): NeonHttpDatabase<typeof schema> {
 // Export a proxy that lazily initializes the database connection
 // This prevents initialization during build time when DATABASE_URL might not be available
 // The connection is only created when db methods are actually called at runtime
-export const db = new Proxy({} as NeonHttpDatabase<typeof schema>, {
-  get(_target, prop) {
+// We cache property accesses to avoid repeated lookups and restore instant performance
+export const db = new Proxy(_proxyTarget, {
+  get(target, prop) {
+    // Check cache first to avoid repeated getDb() calls
+    if (prop in target) {
+      return target[prop]
+    }
+
     // Only initialize when a property is actually accessed
     const dbInstance = getDb()
     const value = dbInstance[prop as keyof NeonHttpDatabase<typeof schema>]
-    // If it's a function, bind it to the db instance to maintain 'this' context
-    if (typeof value === 'function') {
-      return value.bind(dbInstance)
-    }
+    
+    // Cache the value to avoid repeated lookups - this restores instant performance
+    target[prop] = value
+    
+    // Drizzle methods don't need binding - they're not using 'this' context
     return value
   },
-})
-
+}) as NeonHttpDatabase<typeof schema>
