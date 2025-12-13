@@ -21,7 +21,7 @@ type MerchantTableRowProps = {
 
 export function MerchantTableRow({ merchant }: MerchantTableRowProps) {
   const router = useRouter()
-  const { getUserRole, isPlatformAdmin } = usePermissionsContext()
+  const { getUserRole, isPlatformAdmin, loading } = usePermissionsContext()
   const userRole = getUserRole(merchant.id)
 
   return (
@@ -40,29 +40,32 @@ export function MerchantTableRow({ merchant }: MerchantTableRowProps) {
         >
           {merchant.name}
         </Link>
-          <ConditionalRender
-            requireMerchantAccess={merchant.id}
-            fallback={
-              isPlatformAdmin ? (
-                <Badge variant="secondary" className="text-xs">
-                  Admin
-                </Badge>
-              ) : null
-            }
-          >
-            <Badge
-              variant={
-                userRole === 'owner'
-                  ? 'default'
-                  : userRole === 'admin'
-                    ? 'secondary'
-                    : 'outline'
+          {/* Only show role badge when permissions are loaded */}
+          {!loading && (
+            <ConditionalRender
+              requireMerchantAccess={merchant.id}
+              fallback={
+                isPlatformAdmin ? (
+                  <Badge variant="secondary" className="text-xs">
+                    Admin
+                  </Badge>
+                ) : null
               }
-              className="text-xs capitalize"
             >
-              {userRole}
-            </Badge>
-          </ConditionalRender>
+              <Badge
+                variant={
+                  userRole === 'owner'
+                    ? 'default'
+                    : userRole === 'admin'
+                      ? 'secondary'
+                      : 'outline'
+                }
+                className="text-xs capitalize"
+              >
+                {userRole}
+              </Badge>
+            </ConditionalRender>
+          )}
         </div>
       </TableCell>
       <TableCell>

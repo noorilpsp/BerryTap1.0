@@ -93,24 +93,16 @@ export function MerchantsList({ merchants, newMerchantButton }: MerchantsListPro
   }, [clientFiltered, serverResults])
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Merchants</h1>
-          <p className="text-muted-foreground">
-            View and search merchants. Click a row to open details.
-          </p>
-        </div>
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-          <MerchantSearch value={searchQuery} onChange={setSearchQuery} />
-          {newMerchantButton}
-        </div>
+    <>
+      <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+        <MerchantSearch value={searchQuery} onChange={setSearchQuery} />
+        {newMerchantButton}
       </div>
       <MerchantTable 
         merchants={allResults} 
         searchQuery={searchQuery}
         isSearchingServer={isSearchingServer}
       />
-    </div>
+    </>
   )
 }
