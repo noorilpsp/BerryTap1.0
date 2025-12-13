@@ -1,4 +1,3 @@
-import { unstable_noStore } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { eq, inArray } from 'drizzle-orm'
 
@@ -11,7 +10,6 @@ import { isPlatformAdmin } from '@/lib/permissions'
 import { unstable_cache } from '@/lib/unstable-cache'
 
 export async function GET(request: Request) {
-  unstable_noStore()
   try {
     // Get authenticated user
     const supabase = await supabaseServer()

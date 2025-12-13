@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { Link } from '@/components/ui/link'
 import { Badge } from '@/components/ui/badge'
 import { TableCell, TableRow } from '@/components/ui/table'
@@ -19,6 +20,7 @@ type MerchantTableRowProps = {
 }
 
 export function MerchantTableRow({ merchant }: MerchantTableRowProps) {
+  const router = useRouter()
   const { getUserRole, isPlatformAdmin } = usePermissionsContext()
   const userRole = getUserRole(merchant.id)
 
@@ -26,7 +28,7 @@ export function MerchantTableRow({ merchant }: MerchantTableRowProps) {
     <TableRow
       className="cursor-pointer"
       onClick={() => {
-        window.location.href = `/admin/merchants/${merchant.id}`
+        router.push(`/admin/merchants/${merchant.id}`)
       }}
     >
       <TableCell>

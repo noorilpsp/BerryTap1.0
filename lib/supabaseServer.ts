@@ -1,43 +1,34 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { cache } from 'react'
 
-export async function supabaseServer() {
+// Cache Supabase client per request using React's cache() for request-scoped memoization
+// This avoids recreating the client multiple times within the same request
+const getCachedSupabaseClient = cache(async () => {
   const supabaseUrl = process.env.SUPABASE_URL?.trim()
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY?.trim()
 
-  // During build time, environment variables might not be available
-  // Return a stub client that will fail gracefully when used
-  // Also check for empty strings (env vars might be set but empty)
   if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === '' || supabaseAnonKey === '') {
+    // During build time, environment variables might not be available
+    // Return a stub client that will fail gracefully when used
     const errorMessage =
       'Supabase environment variables (SUPABASE_URL and SUPABASE_ANON_KEY) are not set. ' +
       'Make sure they are configured in your Vercel environment variables. ' +
       'This error occurs when Supabase is accessed at runtime.'
 
-    // Return a proxy that returns safe stubs when env vars aren't set
-    // This allows builds to complete even if env vars aren't configured
-    // At runtime, the app won't work without env vars, but the build won't fail
     return new Proxy({} as ReturnType<typeof createServerClient>, {
       get(_target, prop) {
-        // Allow some introspection during build
         if (prop === 'then' || prop === Symbol.toStringTag || prop === 'constructor') {
           return undefined
         }
-        // Return another proxy for nested properties (like .auth)
         return new Proxy(
           {},
           {
             get(_nestedTarget, nestedProp) {
-              // Allow introspection during build (like checking if property exists)
               if (nestedProp === 'then' || nestedProp === Symbol.toStringTag || nestedProp === 'constructor') {
                 return undefined
               }
-              // Return a function that returns a safe stub
-              // This allows Next.js to analyze routes during build without errors
-              // At runtime, if env vars aren't set, the app won't work but won't crash during build
               return function stubFunction() {
-                // Return a safe Promise that resolves to empty data
-                // This prevents build errors while still allowing route analysis
                 return Promise.resolve({ data: { session: null, user: null }, error: null })
               }
             },
@@ -89,4 +80,10 @@ export async function supabaseServer() {
       },
     },
   })
+})
+
+export async function supabaseServer() {
+  // Use cached client (request-scoped via React's cache())
+  // This ensures we only create one client per request, even if called multiple times
+  return getCachedSupabaseClient()
 }

@@ -1,4 +1,3 @@
-import { unstable_noStore } from 'next/cache'
 import dynamic from 'next/dynamic'
 import { Link } from '@/components/ui/link'
 import { ArrowLeft, Building2, Calendar, Mail, MapPin, Phone, Tag } from 'lucide-react'
@@ -48,8 +47,6 @@ type MerchantDetailsProps = {
 }
 
 export async function MerchantDetails({ merchantId }: MerchantDetailsProps) {
-  unstable_noStore()
-
   const getMerchant = unstable_cache(
     async () =>
       db
@@ -67,7 +64,8 @@ export async function MerchantDetails({ merchantId }: MerchantDetailsProps) {
       db
         .select()
         .from(merchantLocations)
-        .where(eq(merchantLocations.merchantId, merchantId)),
+        .where(eq(merchantLocations.merchantId, merchantId))
+        .limit(50), // Limit to 50 locations to improve performance
     ['merchant-locations', merchantId],
     { revalidate: 7200 },
   )

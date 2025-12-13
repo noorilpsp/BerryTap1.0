@@ -1,4 +1,3 @@
-import { unstable_noStore } from 'next/cache'
 import { desc } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { merchants } from '@/db/schema/merchants'
@@ -29,14 +28,12 @@ const getMerchants = unstable_cache(
       })
       .from(merchants)
       .orderBy(desc(merchants.createdAt))
-      .limit(500),
+      .limit(100), // Reduced from 500 to 100 for better initial load performance
   ['admin-merchants-list'],
   { revalidate: 7200 },
 )
 
 export async function MerchantsData() {
-  unstable_noStore()
-
   type MerchantRow = {
     id: string
     name: string

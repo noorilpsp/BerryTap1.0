@@ -1,4 +1,3 @@
-import { unstable_noStore } from 'next/cache'
 import { redirect } from 'next/navigation'
 import dynamic from 'next/dynamic'
 
@@ -18,7 +17,6 @@ const DashboardContent = dynamic(() => import('./components/DashboardContent'), 
 })
 
 export default async function DashboardPage() {
-  unstable_noStore()
   const currentUser = await getCurrentUser()
 
   if (!currentUser) {

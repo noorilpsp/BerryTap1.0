@@ -1,4 +1,3 @@
-import { unstable_noStore } from 'next/cache'
 import dynamic from 'next/dynamic'
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'
@@ -25,8 +24,6 @@ type EditMerchantDataProps = {
 }
 
 export async function EditMerchantData({ merchantId }: EditMerchantDataProps) {
-  unstable_noStore()
-
   const getMerchant = unstable_cache(
     async () =>
       db
