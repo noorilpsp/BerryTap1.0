@@ -156,26 +156,63 @@ const ADMIN_COOKIE_TTL = 30 * 60 // 30 minutes in seconds
 
 /**
  * Gets admin status from cookie (fast path for middleware).
+ * Optimized for speed - minimal parsing and validation.
  * @param cookieValue - The cookie value from request
+ * @param expectedUserId - The user ID to validate against (security check)
  * @returns true if cookie indicates admin, false or null otherwise
  */
-export function getAdminStatusFromCookie(cookieValue: string | undefined): boolean | null {
-  if (!cookieValue) return null
-  try {
-    // Cookie format: "userId:isAdmin:timestamp"
-    const [userId, isAdminStr, timestamp] = cookieValue.split(':')
-    if (!userId || !isAdminStr || !timestamp) return null
-    
-    const cookieTime = parseInt(timestamp, 10)
-    const now = Math.floor(Date.now() / 1000)
-    
-    // Check if cookie is expired (30 min TTL)
-    if (now - cookieTime > ADMIN_COOKIE_TTL) return null
-    
-    return isAdminStr === 'true'
-  } catch {
+export function getAdminStatusFromCookie(
+  cookieValue: string | undefined,
+  expectedUserId: string,
+): boolean | null {
+  if (!cookieValue || cookieValue.length < 10) return null // Quick length check
+  
+  // Fast path: Cookie format is "userId:isAdmin:timestamp"
+  // Find last colon (timestamp separator) - optimized parsing
+  const lastColonIndex = cookieValue.lastIndexOf(':')
+  if (lastColonIndex === -1 || lastColonIndex === cookieValue.length - 1) return null
+  
+  const secondColonIndex = cookieValue.lastIndexOf(':', lastColonIndex - 1)
+  if (secondColonIndex === -1) return null
+  
+  // Extract parts without creating array
+  const cookieUserId = cookieValue.slice(0, secondColonIndex)
+  const timestampStr = cookieValue.slice(lastColonIndex + 1)
+  const isAdminStr = cookieValue.slice(secondColonIndex + 1, lastColonIndex)
+  
+  // Security: Verify cookie belongs to current user
+  if (cookieUserId !== expectedUserId) return null
+  
+  // Quick validation: isAdmin must be 'true' or 'false'
+  if (isAdminStr !== 'true' && isAdminStr !== 'false') return null
+  
+  // Parse timestamp and check expiration (optimized)
+  const cookieTime = +timestampStr // Faster than parseInt
+  if (!cookieTime || cookieTime < 1000000000) return null // Invalid timestamp
+  
+  const now = Math.floor(Date.now() / 1000)
+  if (now - cookieTime > ADMIN_COOKIE_TTL) return null // Expired
+  
+  return isAdminStr === 'true'
+}
+
+/**
+ * Gets admin status from in-memory cache (fastest path).
+ * @param userId - The user ID
+ * @returns true if cached as admin, false if cached as non-admin, null if not cached
+ */
+export function getAdminStatusFromCache(userId: string): boolean | null {
+  const cached = platformAdminCache.get(userId)
+  if (!cached) return null
+  
+  const now = Date.now()
+  if (cached.expiresAt <= now) {
+    // Expired, remove from cache
+    platformAdminCache.delete(userId)
     return null
   }
+  
+  return cached.result
 }
 
 /**

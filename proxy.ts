@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-import { isPlatformAdmin, getAdminStatusFromCookie, setAdminStatusCookie } from '@/lib/permissions'
+import {
+  isPlatformAdmin,
+  getAdminStatusFromCookie,
+  getAdminStatusFromCache,
+  setAdminStatusCookie,
+} from '@/lib/permissions'
+
+const isDevelopment = process.env.NODE_ENV === 'development'
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: request.headers } })
   const pathname = request.nextUrl.pathname
 
-  console.info('[proxy] route protection check', { path: pathname })
+  if (isDevelopment) {
+    console.info('[proxy] route protection check', { path: pathname })
+  }
 
   // Create Supabase client for authentication
   const supabase = createServerClient(
@@ -36,69 +45,71 @@ export async function proxy(request: NextRequest) {
 
   // Handle /dashboard routes - require authentication only
   if (pathname.startsWith('/dashboard')) {
-    console.info('[proxy] dashboard route check', {
-      userId: user?.id,
-      email: user?.email,
-      userError: userError?.message,
-    })
-
     if (userError || !user) {
-      console.info('[proxy] dashboard access denied - not authenticated')
+      if (isDevelopment) {
+        console.info('[proxy] dashboard access denied - not authenticated')
+      }
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    console.info('[proxy] dashboard access granted', { userId: user.id })
+    if (isDevelopment) {
+      console.info('[proxy] dashboard access granted', { userId: user.id })
+    }
     return response
   }
 
   // Handle /admin routes - require platform admin role
   if (pathname.startsWith('/admin')) {
-    console.info('[proxy] admin route check', {
-      userId: user?.id,
-      email: user?.email,
-      userError: userError?.message,
-    })
+    if (isDevelopment) {
+      console.info('[proxy] admin route check', {
+        userId: user?.id,
+        email: user?.email,
+        userError: userError?.message,
+      })
+    }
 
     // First check authentication
     if (userError || !user) {
-      console.info('[proxy] admin access denied - not authenticated')
+      if (isDevelopment) {
+        console.info('[proxy] admin access denied - not authenticated')
+      }
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // Fast path: Check cookie first (no DB query needed)
-    const cookieAdminStatus = getAdminStatusFromCookie(
-      request.cookies.get('bt_admin_status')?.value,
-    )
+    // Ultra-fast path: Check in-memory cache first (<1ms)
+    let isAdmin: boolean | null = getAdminStatusFromCache(user.id)
 
-    let isAdmin: boolean
+    if (isAdmin === null) {
+      // Fast path: Check cookie second (no DB query needed, ~1ms)
+      const cookieAdminStatus = getAdminStatusFromCookie(
+        request.cookies.get('bt_admin_status')?.value,
+        user.id, // Security: validate cookie belongs to this user
+      )
 
-    if (cookieAdminStatus !== null) {
-      // Cookie is valid, use it (fast path - no DB query)
-      isAdmin = cookieAdminStatus
-      console.info('[proxy] platform admin check (cookie)', {
-        userId: user.id,
-        isAdmin,
-      })
-    } else {
-      // Cookie missing or expired, check database and update cookie
-      isAdmin = await isPlatformAdmin(user.id)
-
-      console.info('[proxy] platform admin check (database)', {
-        userId: user.id,
-        isAdmin,
-      })
-
-      // Update cookie for future requests
-      setAdminStatusCookie(response, user.id, isAdmin)
+      if (cookieAdminStatus !== null) {
+        // Cookie is valid, use it and update in-memory cache
+        isAdmin = cookieAdminStatus
+        // Update in-memory cache for next request (async, don't await)
+        isPlatformAdmin(user.id).catch(() => {}) // Populates cache in background
+      } else {
+        // Slow path: Cookie missing/expired, check database (~50-300ms)
+        // This should rarely happen after first request
+        isAdmin = await isPlatformAdmin(user.id)
+        // Update cookie for future requests
+        setAdminStatusCookie(response, user.id, isAdmin)
+      }
     }
 
     if (!isAdmin) {
-      console.info('[proxy] admin access denied - not platform admin')
-      // Redirect to login with a message (could also redirect to dashboard)
+      if (isDevelopment) {
+        console.info('[proxy] admin access denied - not platform admin')
+      }
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    console.info('[proxy] admin access granted', { userId: user.id })
+    if (isDevelopment) {
+      console.info('[proxy] admin access granted', { userId: user.id })
+    }
     return response
   }
 
