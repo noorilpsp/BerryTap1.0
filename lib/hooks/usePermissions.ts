@@ -67,7 +67,15 @@ export function usePermissions() {
       }
     }
 
-    fetchPermissions()
+    // Defer permissions fetch to next tick to avoid blocking navigation
+    // This allows the page to render immediately while permissions load in background
+    const timeoutId = setTimeout(() => {
+      fetchPermissions()
+    }, 0)
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
   }, [])
 
   const refetch = async () => {
