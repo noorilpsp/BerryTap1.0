@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   cacheComponents: true,
+  reactCompiler: true, // React Compiler - automatically memoizes components
   experimental: {
-    reactCompiler: true, // React Compiler - automatically memoizes components
     inlineCss: true,
   },
   typescript: {

@@ -2,7 +2,6 @@ import { supabaseServer } from '@/lib/supabaseServer'
 import { db } from '@/lib/db'
 import { users } from '@/db/schema/users'
 import { eq } from 'drizzle-orm'
-import { unstable_cache } from '@/lib/unstable-cache'
 
 type CurrentUser = {
   id: string
@@ -27,20 +26,13 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const userId = session.user.id
   const userEmail = session.user.email ?? null
 
-  // Cache user profile lookup - user profiles change infrequently
-  const getProfile = unstable_cache(
-    async () =>
-      db
-        .select()
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1)
-        .then((rows) => rows[0] ?? null),
-    ['user-profile', userId],
-    { revalidate: 600 }, // 10 minutes - user profiles don't change often
-  )
-
-  const profile = await getProfile()
+  // Fetch profile from Neon
+  const profile = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null)
 
   return {
     id: userId,
