@@ -1,11 +1,7 @@
-'use client'
-
 import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { MapPin, Phone, Mail } from 'lucide-react'
-import { usePermissionsContext } from '@/lib/contexts/PermissionsContext'
-import { ConditionalRender } from '@/components/ConditionalRender'
 
 type Location = {
   id: string
@@ -13,48 +9,52 @@ type Location = {
   address: string
   postalCode: string
   city: string
-  phone: string | null
+  phone: string
   email: string | null
-  status: string
   logoUrl: string | null
   bannerUrl: string | null
+  status: 'coming_soon' | 'active' | 'temporarily_closed' | 'closed'
+  createdAt: Date | string
+  updatedAt: Date | string
 }
 
 type LocationsListProps = {
   locations: Location[]
-  merchantId: string
+  totalLocations: number
 }
 
-export function LocationsList({ locations, merchantId }: LocationsListProps) {
-  const { canAccessLocation, isPlatformAdmin } = usePermissionsContext()
-
-  // Filter locations based on user access
-  // Platform admins can see all locations
-  // Regular users can only see locations they have access to
-  const accessibleLocations = isPlatformAdmin
-    ? locations
-    : locations.filter((location) => canAccessLocation(location.id))
+export function LocationsList({ locations, totalLocations }: LocationsListProps) {
+  // Locations are already filtered on the server, so we just render them
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Locations</CardTitle>
         <CardDescription>
-          {accessibleLocations.length === 0
+          {locations.length === 0
             ? 'No accessible locations found'
-            : `${accessibleLocations.length} of ${locations.length} location${locations.length === 1 ? '' : 's'} accessible`}
+            : `${locations.length} of ${totalLocations} location${totalLocations === 1 ? '' : 's'} accessible`}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {accessibleLocations.length === 0 ? (
+        {locations.length === 0 ? (
           <div className="text-muted-foreground py-8 text-center text-sm">
-            {locations.length === 0
+            {totalLocations === 0
               ? 'No locations have been added yet.'
               : "You don't have access to any locations for this merchant."}
           </div>
         ) : (
           <div className="space-y-4">
-            {accessibleLocations.map((location) => (
+            {locations.map((location) => {
+              // Format address for display
+              const addressParts = [
+                location.address,
+                location.city,
+                location.postalCode,
+              ].filter(Boolean)
+              const fullAddress = addressParts.join(', ')
+              
+              return (
               <div key={location.id} className="rounded-lg border p-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-3 flex-1">
@@ -65,15 +65,12 @@ export function LocationsList({ locations, merchantId }: LocationsListProps) {
                       </Badge>
                     </div>
                     <div className="grid gap-2 text-sm md:grid-cols-2">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-                        <div>
-                          <div>{location.address}</div>
-                          <div className="text-muted-foreground">
-                            {location.postalCode} {location.city}
-                          </div>
+                      {fullAddress && (
+                        <div className="flex items-start gap-2">
+                          <MapPin className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+                          <div className="text-muted-foreground">{fullAddress}</div>
                         </div>
-                      </div>
+                      )}
                       {location.phone && (
                         <div className="flex items-center gap-2">
                           <Phone className="text-muted-foreground size-4 shrink-0" />
@@ -122,7 +119,8 @@ export function LocationsList({ locations, merchantId }: LocationsListProps) {
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </CardContent>
