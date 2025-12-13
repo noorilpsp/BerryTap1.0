@@ -3,7 +3,7 @@
 import type React from 'react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import Link from 'next/link'
+import { Link } from '@/components/ui/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'

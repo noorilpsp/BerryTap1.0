@@ -1,6 +1,6 @@
 import { unstable_noStore } from 'next/cache'
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
+import { Link } from '@/components/ui/link'
 import { ArrowLeft, Building2, Calendar, Mail, MapPin, Phone, Tag } from 'lucide-react'
 import { eq } from 'drizzle-orm'
 import { notFound } from 'next/navigation'

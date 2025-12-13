@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { Link } from '@/components/ui/link'
 import { Button } from '@/components/ui/button'
 import { PermissionButton } from '@/components/PermissionButton'
 import { ConditionalRender } from '@/components/ConditionalRender'

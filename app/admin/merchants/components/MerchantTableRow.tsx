@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { Link } from '@/components/ui/link'
 import { Badge } from '@/components/ui/badge'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { usePermissionsContext } from '@/lib/contexts/PermissionsContext'

@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { Link } from '@/components/ui/link'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConditionalRender } from '@/components/ConditionalRender'
