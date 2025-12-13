@@ -1,31 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseHTML } from "linkedom";
 
-function getHostname() {
-  if (process.env.NODE_ENV === "development") {
-    return "localhost:3000";
-  }
-  if (process.env.VERCEL_ENV === "production") {
-    return process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  }
-  return process.env.VERCEL_BRANCH_URL;
-}
-
 export async function GET(
-  _: NextRequest,
+  request: NextRequest,
   { params }: { params: { rest: string[] } },
 ) {
-  const schema = process.env.NODE_ENV === "development" ? "http" : "https";
-  const host = getHostname();
-  if (!host) {
-    return new Response("Failed to get hostname from env", { status: 500 });
-  }
   const href = (await params).rest.join("/");
   if (!href) {
     return new Response("Missing url parameter", { status: 400 });
   }
-  const url = `${schema}://${host}/${href}`;
-  const response = await fetch(url);
+  
+  // Use the request URL to construct the target URL
+  // This works in all environments (dev, preview, production)
+  const baseUrl = request.nextUrl.origin;
+  const url = `${baseUrl}/${href}`;
+  
+  // Forward cookies from the client request to the internal fetch
+  // This allows prefetching images from authenticated routes like /admin
+  const cookieHeader = request.headers.get("cookie");
+  const headers: HeadersInit = {};
+  if (cookieHeader) {
+    headers["cookie"] = cookieHeader;
+  }
+  
+  const response = await fetch(url, { headers });
   if (!response.ok) {
     return new Response("Failed to fetch", { status: response.status });
   }

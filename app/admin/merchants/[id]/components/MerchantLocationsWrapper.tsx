@@ -62,3 +62,4 @@ export async function MerchantLocationsWrapper({
 export function MerchantLocationsWrapperSkeleton() {
   return <LocationsSkeleton />
 }
+

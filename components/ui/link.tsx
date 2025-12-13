@@ -20,14 +20,27 @@ async function prefetchImages(href: string) {
   if (!href.startsWith("/") || href.startsWith("/order") || href === "/") {
     return [];
   }
-  const url = new URL(href, window.location.href);
-  const imageResponse = await fetch(`/api/prefetch-images${url.pathname}`);
-  // only throw in dev
-  if (!imageResponse.ok && process.env.NODE_ENV === "development") {
-    throw new Error("Failed to prefetch images");
+  try {
+    const url = new URL(href, window.location.href);
+    const imageResponse = await fetch(`/api/prefetch-images${url.pathname}`, {
+      credentials: 'include', // Include cookies for authenticated routes
+    });
+    
+    if (!imageResponse.ok) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`Failed to prefetch images for ${href}: ${imageResponse.status}`);
+      }
+      return [];
+    }
+    
+    const data = await imageResponse.json();
+    return (data.images || []) as PrefetchImage[];
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(`Error prefetching images for ${href}:`, error);
+    }
+    return [];
   }
-  const { images } = await imageResponse.json();
-  return images as PrefetchImage[];
 }
 
 const seen = new Set<string>();
@@ -105,12 +118,43 @@ export const Link: typeof NextLink = (({ children, ...props }) => {
       prefetch={false}
       onMouseEnter={() => {
         const href = String(props.href);
+        if (!href || !href.startsWith('/')) return;
+        
         const isAdminRoute = href.startsWith('/admin');
         
-        router.prefetch(href);
-        const images = imageCache.get(href) || [];
-        for (const image of images) {
-          prefetchImage(image);
+        // Prefetch the route (JS and data) - this is critical for Next.js App Router
+        // router.prefetch() works independently of the Link's prefetch prop
+        try {
+          router.prefetch(href);
+        } catch (error) {
+          // Silently handle prefetch errors (e.g., invalid routes)
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Prefetch error for', href, error);
+          }
+        }
+        
+        // Prefetch images - use cache if available, otherwise fetch
+        const cachedImages = imageCache.get(href);
+        if (cachedImages && cachedImages.length > 0) {
+          // Use cached images
+          for (const image of cachedImages) {
+            prefetchImage(image);
+          }
+        } else {
+          // Fetch images if not cached yet
+          void prefetchImages(href).then((images) => {
+            if (images && images.length > 0) {
+              imageCache.set(href, images);
+              for (const image of images) {
+                prefetchImage(image);
+              }
+            }
+          }).catch((error) => {
+            // Silently handle image prefetch errors
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Image prefetch error for', href, error);
+            }
+          });
         }
         
         // Prefetch permissions API if navigating to admin routes
@@ -141,9 +185,14 @@ export const Link: typeof NextLink = (({ children, ...props }) => {
 }) as typeof NextLink;
 
 function prefetchImage(image: PrefetchImage) {
-  if (image.loading === "lazy" || seen.has(image.srcset)) {
+  if (!image.src) return; // Skip if no src
+  
+  // Use srcset or src as the key for tracking
+  const key = image.srcset || image.src;
+  if (image.loading === "lazy" || seen.has(key)) {
     return;
   }
+  
   const img = new Image();
   img.decoding = "async";
   // fetchPriority is a valid HTMLImageElement property (experimental)
@@ -151,9 +200,15 @@ function prefetchImage(image: PrefetchImage) {
     // @ts-expect-error - fetchPriority is experimental and not in all TypeScript versions
     img.fetchPriority = "low";
   }
-  img.sizes = image.sizes;
-  seen.add(image.srcset);
-  img.srcset = image.srcset;
+  if (image.sizes) {
+    img.sizes = image.sizes;
+  }
+  seen.add(key);
+  if (image.srcset) {
+    img.srcset = image.srcset;
+  }
   img.src = image.src;
-  img.alt = image.alt;
+  if (image.alt) {
+    img.alt = image.alt;
+  }
 }
