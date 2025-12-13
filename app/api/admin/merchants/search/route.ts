@@ -6,6 +6,9 @@ import { db } from '@/lib/db'
 import { merchants } from '@/db/schema/merchants'
 import { isPlatformAdmin } from '@/lib/permissions'
 
+// Prevent prerendering - this is a dynamic API route
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     // Verify user is platform admin
