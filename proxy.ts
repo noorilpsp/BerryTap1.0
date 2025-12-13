@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-import { isPlatformAdmin } from '@/lib/permissions'
+import { isPlatformAdmin, getAdminStatusFromCookie, setAdminStatusCookie } from '@/lib/permissions'
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: request.headers } })
@@ -65,13 +65,32 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // Then check platform admin role
-    const isAdmin = await isPlatformAdmin(user.id)
+    // Fast path: Check cookie first (no DB query needed)
+    const cookieAdminStatus = getAdminStatusFromCookie(
+      request.cookies.get('bt_admin_status')?.value,
+    )
 
-    console.info('[proxy] platform admin check', {
-      userId: user.id,
-      isAdmin,
-    })
+    let isAdmin: boolean
+
+    if (cookieAdminStatus !== null) {
+      // Cookie is valid, use it (fast path - no DB query)
+      isAdmin = cookieAdminStatus
+      console.info('[proxy] platform admin check (cookie)', {
+        userId: user.id,
+        isAdmin,
+      })
+    } else {
+      // Cookie missing or expired, check database and update cookie
+      isAdmin = await isPlatformAdmin(user.id)
+
+      console.info('[proxy] platform admin check (database)', {
+        userId: user.id,
+        isAdmin,
+      })
+
+      // Update cookie for future requests
+      setAdminStatusCookie(response, user.id, isAdmin)
+    }
 
     if (!isAdmin) {
       console.info('[proxy] admin access denied - not platform admin')

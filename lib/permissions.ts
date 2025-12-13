@@ -150,12 +150,72 @@ const platformAdminCache = new Map<
   { result: boolean; expiresAt: number }
 >()
 
-const PLATFORM_ADMIN_CACHE_TTL = 5 * 60 * 1000 // 5 minutes in milliseconds
+const PLATFORM_ADMIN_CACHE_TTL = 30 * 60 * 1000 // 30 minutes in milliseconds (admin status rarely changes)
+const ADMIN_COOKIE_NAME = 'bt_admin_status'
+const ADMIN_COOKIE_TTL = 30 * 60 // 30 minutes in seconds
+
+/**
+ * Gets admin status from cookie (fast path for middleware).
+ * @param cookieValue - The cookie value from request
+ * @returns true if cookie indicates admin, false or null otherwise
+ */
+export function getAdminStatusFromCookie(cookieValue: string | undefined): boolean | null {
+  if (!cookieValue) return null
+  try {
+    // Cookie format: "userId:isAdmin:timestamp"
+    const [userId, isAdminStr, timestamp] = cookieValue.split(':')
+    if (!userId || !isAdminStr || !timestamp) return null
+    
+    const cookieTime = parseInt(timestamp, 10)
+    const now = Math.floor(Date.now() / 1000)
+    
+    // Check if cookie is expired (30 min TTL)
+    if (now - cookieTime > ADMIN_COOKIE_TTL) return null
+    
+    return isAdminStr === 'true'
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Sets admin status in cookie (for middleware fast-path).
+ * @param response - NextResponse to set cookie on
+ * @param userId - The user ID
+ * @param isAdmin - Whether user is admin
+ */
+export function setAdminStatusCookie(
+  response: { cookies: { set: (name: string, value: string, options?: Record<string, unknown>) => void } },
+  userId: string,
+  isAdmin: boolean,
+): void {
+  const timestamp = Math.floor(Date.now() / 1000)
+  const cookieValue = `${userId}:${isAdmin}:${timestamp}`
+  
+  response.cookies.set(ADMIN_COOKIE_NAME, cookieValue, {
+    httpOnly: true, // Prevent XSS attacks
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    sameSite: 'lax',
+    maxAge: ADMIN_COOKIE_TTL,
+    path: '/',
+  })
+}
+
+/**
+ * Pre-caches admin status for a user (useful after login).
+ * This warms up the cache so the first admin page visit is fast.
+ * @param userId - The user ID (Supabase auth UUID)
+ * @returns The admin status (for setting in cookie)
+ */
+export async function preCacheAdminStatus(userId: string): Promise<boolean> {
+  // Trigger the check which will populate the cache
+  return await isPlatformAdmin(userId)
+}
 
 /**
  * Checks if a user is a platform admin (super_admin role).
  * Optimized with multi-layer caching:
- * 1. In-memory cache (5min TTL) for middleware/rapid requests
+ * 1. In-memory cache (30min TTL) for middleware/rapid requests
  * 2. Next.js unstable_cache (2hr revalidate) for server components/API routes
  * @param userId - The user ID (Supabase auth UUID)
  * @returns true if user is an active platform super_admin, false otherwise

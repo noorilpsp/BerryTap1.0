@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabaseServer'
 import { db } from '@/lib/db'
 import { users } from '@/db/schema/users'
+import { preCacheAdminStatus, setAdminStatusCookie } from '@/lib/permissions'
 
 export async function POST(request: Request) {
   const { email, password } = await request.json().catch(() => ({}))
@@ -56,7 +57,17 @@ export async function POST(request: Request) {
       },
     })
 
+  // Pre-cache admin status and set cookie for fast middleware checks
+  const response = NextResponse.json({ user: data.user })
+  try {
+    const isAdmin = await preCacheAdminStatus(userId)
+    setAdminStatusCookie(response, userId, isAdmin)
+  } catch (error) {
+    // Don't fail login if admin check fails, just log it
+    console.error('Failed to pre-cache admin status:', error)
+  }
+
   // Supabase client sets auth cookies automatically via the server client
-  return NextResponse.json({ user: data.user })
+  return response
 }
 
