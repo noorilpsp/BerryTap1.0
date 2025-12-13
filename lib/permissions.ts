@@ -143,14 +143,34 @@ export async function canAccessLocation(
   return false
 }
 
+// In-memory cache for middleware context (middleware doesn't benefit from React's cache)
+// This provides fast lookups for repeated middleware checks
+const platformAdminCache = new Map<
+  string,
+  { result: boolean; expiresAt: number }
+>()
+
+const PLATFORM_ADMIN_CACHE_TTL = 5 * 60 * 1000 // 5 minutes in milliseconds
+
 /**
  * Checks if a user is a platform admin (super_admin role).
+ * Optimized with multi-layer caching:
+ * 1. In-memory cache (5min TTL) for middleware/rapid requests
+ * 2. Next.js unstable_cache (2hr revalidate) for server components/API routes
  * @param userId - The user ID (Supabase auth UUID)
  * @returns true if user is an active platform super_admin, false otherwise
  */
 export async function isPlatformAdmin(userId: string): Promise<boolean> {
-  const query = () =>
-    db
+  // Check in-memory cache first (fast path for middleware)
+  const cached = platformAdminCache.get(userId)
+  const now = Date.now()
+  if (cached && cached.expiresAt > now) {
+    return cached.result
+  }
+
+  // Query function - optimized to only fetch what we need
+  const query = async (): Promise<boolean> => {
+    const result = await db
       .select({
         role: platformPersonnel.role,
         isActive: platformPersonnel.isActive,
@@ -160,20 +180,40 @@ export async function isPlatformAdmin(userId: string): Promise<boolean> {
       .limit(1)
       .then((rows) => rows[0] ?? null)
 
-  let personnel: { role: string; isActive: boolean } | null = null
-
-  try {
-    const cached = unstable_cache(query, ['platform-personnel', userId], {
-      revalidate: 7200,
-    })
-    personnel = await cached()
-  } catch {
-    personnel = await query()
+    return (
+      result !== null &&
+      result.role === 'super_admin' &&
+      result.isActive === true
+    )
   }
 
-  return (
-    personnel !== null &&
-    personnel.role === 'super_admin' &&
-    personnel.isActive === true
-  )
+  let isAdmin: boolean
+
+  // Try Next.js cache (works in server components/API routes)
+  try {
+    const cachedQuery = unstable_cache(query, ['platform-personnel', userId], {
+      revalidate: 7200, // 2 hours
+    })
+    isAdmin = await cachedQuery()
+  } catch {
+    // Fallback to direct query (middleware context)
+    isAdmin = await query()
+  }
+
+  // Update in-memory cache
+  platformAdminCache.set(userId, {
+    result: isAdmin,
+    expiresAt: now + PLATFORM_ADMIN_CACHE_TTL,
+  })
+
+  // Clean up expired entries periodically (keep cache size manageable)
+  if (platformAdminCache.size > 1000) {
+    for (const [key, value] of platformAdminCache.entries()) {
+      if (value.expiresAt <= now) {
+        platformAdminCache.delete(key)
+      }
+    }
+  }
+
+  return isAdmin
 }
