@@ -3,6 +3,10 @@ import { getCollections, getProductCount } from "@/lib/queries";
 
 import Image from "next/image";
 
+// Make this page dynamic to avoid build-time database access
+// DATABASE_URL may not be available during build phase
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const [collections, productCount] = await Promise.all([
     getCollections(),
