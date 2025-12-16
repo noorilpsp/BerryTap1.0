@@ -6,6 +6,11 @@ import { db } from "@/db";
 import { categories } from "@/db/schema";
 
 export async function generateStaticParams() {
+  // During build, DATABASE_URL might not be available
+  // Return empty array to make this route dynamic at runtime
+  if (!process.env.DATABASE_URL) {
+    return [];
+  }
   return await db.select({ category: categories.slug }).from(categories);
 }
 

@@ -6,6 +6,11 @@ import { getCollectionDetails } from "@/lib/queries";
 import Image from "next/image";
 
 export async function generateStaticParams() {
+  // During build, DATABASE_URL might not be available
+  // Return empty array to make this route dynamic at runtime
+  if (!process.env.DATABASE_URL) {
+    return [];
+  }
   return await db.select({ collection: collections.slug }).from(collections);
 }
 
