@@ -61,7 +61,7 @@ export const Link: typeof NextLink = (({ children, ...props }) => {
             }
 
             observer.unobserve(entry.target);
-          }, 100);
+          }, 300);
         } else if (prefetchTimeout) {
           clearTimeout(prefetchTimeout);
           prefetchTimeout = null;
