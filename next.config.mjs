@@ -2,8 +2,8 @@
 const nextConfig = {
   experimental: {
     inlineCss: true,
-    reactCompiler: true,
   },
+  reactCompiler: true,
   typescript: {
     ignoreBuildErrors: true,
   },
