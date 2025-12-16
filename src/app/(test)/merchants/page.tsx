@@ -2,6 +2,9 @@ import { Link } from "@/components/ui/link";
 import { getMerchantsList } from "@/lib/queries";
 import Image from "next/image";
 
+// Make this page dynamic to avoid build-time database access
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const merchants = await getMerchantsList();
   let imageCount = 0;
